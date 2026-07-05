@@ -18,6 +18,8 @@ use std::{
 };
 use taffy::prelude::{TaffyGridLine, TaffyGridSpan};
 
+use crate::ScaleAxes;
+
 use crate::{App, DisplayId};
 
 /// Axis in a 2D cartesian space.
@@ -384,6 +386,15 @@ impl<T: Clone + Debug + Default + PartialEq + Display> Display for Point<T> {
     }
 }
 
+impl ScaleAxes for Point<Pixels> {
+    fn scale_axes(&self, x_ratio: f32, y_ratio: f32) -> Self {
+        Point {
+            x: self.x * x_ratio,
+            y: self.y * y_ratio,
+        }
+    }
+}
+
 /// A structure representing a two-dimensional size with width and height in a given unit.
 ///
 /// This struct is generic over the type `T`, which can be any type that implements `Clone`, `Default`, and `Debug`.
@@ -526,6 +537,15 @@ where
                 width: self.width.clone(),
                 height: f(self.height.clone()),
             },
+        }
+    }
+}
+
+impl ScaleAxes for Size<Pixels> {
+    fn scale_axes(&self, x_ratio: f32, y_ratio: f32) -> Self {
+        Size {
+            width: self.width * x_ratio,
+            height: self.height * y_ratio,
         }
     }
 }
@@ -1213,6 +1233,29 @@ where
         Bounds {
             origin: self.origin * rhs.clone(),
             size: self.size * rhs,
+        }
+    }
+}
+
+impl Mul<f32> for Bounds<Pixels> {
+    type Output = Self;
+
+    fn mul(self, rhs: f32) -> Self {
+        Bounds {
+            origin: self.origin * rhs,
+            size: Size {
+                width: self.size.width * rhs,
+                height: self.size.height * rhs,
+            },
+        }
+    }
+}
+
+impl ScaleAxes for Bounds<Pixels> {
+    fn scale_axes(&self, x_ratio: f32, y_ratio: f32) -> Self {
+        Bounds {
+            origin: point(self.origin.x * x_ratio, self.origin.y * y_ratio),
+            size: size(self.size.width * x_ratio, self.size.height * y_ratio),
         }
     }
 }

@@ -7,6 +7,16 @@ use std::{
 
 use crate::{App, Entity, EntityId, Window, lerp::Lerp, linear};
 
+/// Trait for types that can be scaled independently on the x and y axes.
+///
+/// Used by [`Transition::scale_by_axes`] when the coordinate space changes
+/// non-uniformly (e.g. vertical-only zoom in a timeline).
+pub trait ScaleAxes {
+    /// Scale `self`, returning a new value with x components multiplied by
+    /// `x_ratio` and y components multiplied by `y_ratio`.
+    fn scale_axes(&self, x_ratio: f32, y_ratio: f32) -> Self;
+}
+
 /// An animated transition between values of type `T`.
 ///
 /// `Transition` manages the interpolation of a value from a start state to a goal
@@ -235,6 +245,39 @@ impl<T: Lerp + Clone + PartialEq + 'static> Transition<T> {
         self.state.update(cx, |state, _cx| {
             state.start_goal = state.start_goal.clone() * ratio;
             state.end_goal = state.end_goal.clone() * ratio;
+        });
+        self.cached_value.borrow_mut().take();
+    }
+
+    /// Scale the transition's start and end goals independently on the x and y axes.
+    ///
+    /// Use this when the coordinate space changes non-uniformly, such as when
+    /// zooming only the vertical axis of a timeline. `x_ratio` scales x-position
+    /// and width; `y_ratio` scales y-position and height.
+    pub fn scale_by_axes(&self, x_ratio: f32, y_ratio: f32, cx: &mut App)
+    where
+        T: ScaleAxes,
+    {
+        self.state.update(cx, |state, _cx| {
+            state.start_goal = state.start_goal.scale_axes(x_ratio, y_ratio);
+            state.end_goal = state.end_goal.scale_axes(x_ratio, y_ratio);
+        });
+        self.cached_value.borrow_mut().take();
+    }
+
+    /// Offset the transition's start and end goals by the given delta.
+    ///
+    /// Use this when the coordinate space shifts (translates), such as when
+    /// a scroll offset changes and you need the animated values to track the
+    /// new origin. Unlike [`scale_by_axes`] which multiplies, this adds the
+    /// delta to both goals, preserving the in-flight animation's progress.
+    pub fn offset_by(&self, delta: T, cx: &mut App)
+    where
+        T: std::ops::Add<T, Output = T>,
+    {
+        self.state.update(cx, |state, _cx| {
+            state.start_goal = state.start_goal.clone() + delta.clone();
+            state.end_goal = state.end_goal.clone() + delta;
         });
         self.cached_value.borrow_mut().take();
     }

@@ -2589,6 +2589,7 @@ dependencies = [
  "etagere",
  "futures",
  "gpui",
+ "gpui_wgpu",
  "image",
  "itertools 0.14.0",
  "log",
